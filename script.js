@@ -198,12 +198,17 @@ document.addEventListener('DOMContentLoaded', () => {
       resultsCountEl.innerHTML = `검색 결과: <strong>${filtered.length}</strong>건의 프로젝트`;
     }
 
-    if (currentView === 'cards') {
-      renderCards(filtered);
-    } else {
-      renderTable(filtered);
-    }
+    // 카드 뷰와 테이블 뷰를 모두 렌더링해 두어 PDF 인쇄 시 테이블이 누락되지 않도록 보장
+    renderCards(filtered);
+    renderTable(filtered);
   };
+
+  // 인쇄 전(beforeprint) 처리: 다크모드 스타일 보장 및 전체 38개 프로젝트 테이블 출력
+  window.addEventListener('beforeprint', () => {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    renderTable(portfolioProjects);
+  });
+
 
   // 카드 뷰 렌더링
   const renderCards = (projects) => {
