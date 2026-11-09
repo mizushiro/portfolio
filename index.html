@@ -31,6 +31,7 @@
   <a href="#main-content" class="skip-nav">본문 콘텐츠 바로가기</a>
   <a href="#featured-section" class="skip-nav">대표 프로젝트 바로가기</a>
   <a href="#projects-section" class="skip-nav">전체 프로젝트 아카이브 바로가기</a>
+  <a href="#board-section" class="skip-nav">프로젝트 문의 게시판 바로가기</a>
   <a href="#contact-section" class="skip-nav">연락처 바로가기</a>
 
   <!-- 배경 은은한 빛 효과 -->
@@ -56,6 +57,7 @@
         <a href="#featured-section" class="nav-link">대표프로젝트</a>
         <a href="#projects-section" class="nav-link">전체 프로젝트 (40)</a>
         <a href="#timeline-section" class="nav-link">경력 연혁</a>
+        <a href="#board-section" class="nav-link">문의 게시판</a>
         <a href="#contact-section" class="nav-link">연락처</a>
       </nav>
 
@@ -786,6 +788,160 @@
                 <span class="tag-sm">웹디자인</span>
                 <span class="tag-sm">웹코딩</span>
                 <span class="tag-sm">웹표준 기초</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ----------------------------------------------------------------------
+         Q&A & Guestbook Board Section (프로젝트 문의 & 방명록 게시판)
+         ---------------------------------------------------------------------- -->
+    <section class="section board-section" id="board-section" aria-labelledby="board-heading">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-tag">Q&amp;A &amp; Guestbook</span>
+          <h2 class="section-title" id="board-heading">프로젝트 문의 &amp; 방명록</h2>
+          <p class="section-desc">
+            프로젝트 투입·협업 문의나 응원 메시지를 남겨주세요. 비밀글 설정 및 답글 작성이 가능하며, GitHub 계정 연동 댓글도 지원합니다.
+          </p>
+        </div>
+
+        <!-- Board Mode Switcher (Q&A Board vs GitHub Discussions/Issues) -->
+        <div class="board-mode-bar" role="tablist" aria-label="게시판 모드 선택">
+          <button type="button" class="board-mode-btn active" id="mode-qna-btn" role="tab" aria-selected="true"
+            aria-controls="board-panel-qna">
+            <span>💬 문의 &amp; 방명록 게시판</span>
+            <span class="board-mode-badge" id="qna-total-badge">3</span>
+          </button>
+          <button type="button" class="board-mode-btn" id="mode-github-btn" role="tab" aria-selected="false"
+            aria-controls="board-panel-github">
+            <span>🐙 GitHub Discussions / 댓글 연동</span>
+            <span class="board-mode-sub">Giscus · Utterances</span>
+          </button>
+        </div>
+
+        <!-- PANEL 1: Interactive Q&A & Guestbook Board (with Replies & Secret Post) -->
+        <div id="board-panel-qna" class="board-panel active" role="tabpanel" aria-labelledby="mode-qna-btn">
+          <!-- Top Bar: Category Filter & Write Button -->
+          <div class="board-toolbar">
+            <div class="board-filter-tabs" role="tablist" aria-label="게시글 분류 필터">
+              <button type="button" class="board-filter-btn active" data-board-cat="all" role="tab" aria-selected="true">
+                전체 <span class="filter-count" id="board-count-all">0</span>
+              </button>
+              <button type="button" class="board-filter-btn" data-board-cat="project" role="tab" aria-selected="false">
+                💼 프로젝트 문의 <span class="filter-count" id="board-count-project">0</span>
+              </button>
+              <button type="button" class="board-filter-btn" data-board-cat="recruit" role="tab" aria-selected="false">
+                🤝 채용/협업 제안 <span class="filter-count" id="board-count-recruit">0</span>
+              </button>
+              <button type="button" class="board-filter-btn" data-board-cat="guestbook" role="tab" aria-selected="false">
+                ✨ 방명록/응원 <span class="filter-count" id="board-count-guestbook">0</span>
+              </button>
+            </div>
+
+            <button type="button" class="btn-primary btn-board-write" id="btn-toggle-write" aria-expanded="false"
+              aria-controls="board-write-wrap">
+              <span>✏️ 새 글 작성하기</span>
+            </button>
+          </div>
+
+          <!-- Collapsible Write Post Form -->
+          <div class="board-write-wrap" id="board-write-wrap" hidden>
+            <form id="board-write-form" class="board-form" novalidate>
+              <div class="board-form-header">
+                <h3 class="board-form-title">새 게시글 작성</h3>
+                <span class="board-form-notice">* 비밀글 체크 시 작성자 비밀번호(또는 관리자)만 내용을 열람할 수 있습니다.</span>
+              </div>
+
+              <div class="board-form-grid">
+                <div class="form-group">
+                  <label for="post-category" class="form-label">분류 선택 <span class="req">*</span></label>
+                  <select id="post-category" class="form-select" required>
+                    <option value="project">💼 프로젝트 문의</option>
+                    <option value="recruit">🤝 채용/협업 제안</option>
+                    <option value="guestbook">✨ 방명록/응원</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="post-author" class="form-label">작성자 (소속/성함) <span class="req">*</span></label>
+                  <input type="text" id="post-author" class="form-input" placeholder="예: 홍길동 (OO기업 PM)" maxlength="30"
+                    required>
+                </div>
+
+                <div class="form-group">
+                  <label for="post-password" class="form-label">비밀번호 (삭제/비밀글용) <span class="req">*</span></label>
+                  <input type="password" id="post-password" class="form-input" placeholder="4자리 이상 입력" maxlength="20"
+                    required>
+                </div>
+
+                <div class="form-group form-group-checkbox">
+                  <label class="secret-checkbox-label" for="post-secret">
+                    <input type="checkbox" id="post-secret" class="secret-checkbox">
+                    <span class="secret-checkbox-text">🔒 비밀글로 작성 (비공개 문의)</span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="form-group" style="margin-top: 14px;">
+                <label for="post-title" class="form-label">제목 <span class="req">*</span></label>
+                <input type="text" id="post-title" class="form-input"
+                  placeholder="문의 제목 또는 응원 한마디를 입력해 주세요." maxlength="100" required>
+              </div>
+
+              <div class="form-group" style="margin-top: 14px;">
+                <label for="post-content" class="form-label">내용 <span class="req">*</span></label>
+                <textarea id="post-content" class="form-textarea" rows="4"
+                  placeholder="프로젝트 기간, 지역, 주요 기술 스택(React, Vue, 웹접근성 등) 또는 남기실 말씀을 자유롭게 작성해 주세요."
+                  required></textarea>
+              </div>
+
+              <div class="board-form-actions">
+                <button type="button" class="btn-secondary" id="btn-cancel-write">취소</button>
+                <button type="submit" class="btn-primary">게시글 등록하기</button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Board Post List (Accordion with Replies) -->
+          <div class="board-list-wrap" id="board-list-container" role="region" aria-live="polite"
+            aria-label="게시글 및 답글 목록">
+            <!-- Dynamically rendered via script.js -->
+          </div>
+        </div>
+
+        <!-- PANEL 2: GitHub Discussions / Issues Widget (Giscus / Utterances) -->
+        <div id="board-panel-github" class="board-panel" role="tabpanel" aria-labelledby="mode-github-btn" hidden>
+          <div class="github-board-card">
+            <div class="github-board-header">
+              <div>
+                <h3 class="github-board-title">🐙 GitHub 계정 연동 실시간 댓글 &amp; 답글 (mizushiro/portfolio)</h3>
+                <p class="github-board-desc">
+                  GitHub 로그인 후 댓글과 대댓글(답글), 이모지 리액션을 남기실 수 있습니다. 작성된 글은 GitHub 저장소에 안전하게 보관됩니다.
+                </p>
+              </div>
+              <div class="github-engine-switch" role="group" aria-label="GitHub 댓글 위젯 방식 선택">
+                <button type="button" class="engine-btn active" id="engine-utterances-btn">
+                  Utterances (Issues 기반)
+                </button>
+                <button type="button" class="engine-btn" id="engine-giscus-btn">
+                  Giscus (Discussions 기반)
+                </button>
+              </div>
+            </div>
+
+            <!-- Utterances Container -->
+            <div id="utterances-wrap" class="github-widget-container">
+              <div id="utterances-thread"></div>
+            </div>
+
+            <!-- Giscus Container -->
+            <div id="giscus-wrap" class="github-widget-container" hidden>
+              <div id="giscus-thread"></div>
+              <div class="github-setup-guide">
+                <span>💡 <strong>Giscus Discussions 안내:</strong> GitHub 저장소(<code>mizushiro/portfolio</code>)의 Settings &rarr; Features &rarr; <strong>Discussions</strong> 활성화 후 <a href="https://giscus.app/ko" target="_blank" rel="noopener noreferrer" style="color: var(--accent-cyan); text-decoration: underline;">giscus.app/ko</a>에서 발급된 <code>data-repo-id</code>가 자동 연동됩니다.</span>
               </div>
             </div>
           </div>
