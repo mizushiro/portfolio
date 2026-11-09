@@ -183,7 +183,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const inSkills = project.skills.some(s => s.toLowerCase().includes(q));
         const inRole = project.role.toLowerCase().includes(q);
         const inDesc = project.description.toLowerCase().includes(q);
-        matchesSearch = inTitle || inClient || inCompany || inSkills || inRole || inDesc;
+        const inLinks = project.links ? project.links.some(l => l.label.toLowerCase().includes(q) || l.url.toLowerCase().includes(q)) : false;
+        matchesSearch = inTitle || inClient || inCompany || inSkills || inRole || inDesc || inLinks;
       }
 
       return matchesCategory && matchesSearch;
@@ -203,7 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderTable(filtered);
   };
 
-  // 인쇄 전(beforeprint) 처리: 다크모드 스타일 보장 및 전체 38개 프로젝트 테이블 출력
+  // 인쇄 전(beforeprint) 처리: 다크모드 스타일 보장 및 전체 39개 프로젝트 테이블 출력
   window.addEventListener('beforeprint', () => {
     document.documentElement.setAttribute('data-theme', 'dark');
     renderTable(portfolioProjects);
@@ -237,6 +238,19 @@ document.addEventListener('DOMContentLoaded', () => {
       const waBadge = project.hasAccessibility ? `<span class="badge-tag wa">WA 웹접근성</span>` : '';
       const roleBadge = `<span class="badge-tag ${roleBadgeClass}">${project.role}</span>`;
 
+      // 외부 URL 링크 구성
+      const projectLinks = project.links || (project.url ? [{ label: project.urlLabel || 'URL 바로가기', url: project.url }] : []);
+      const linksHtml = projectLinks.length > 0 ? `
+        <div class="project-card-links">
+          ${projectLinks.map(link => `
+            <a href="${link.url}" target="_blank" rel="noopener noreferrer" class="btn-url-chip" title="${link.label} 새 창으로 열기">
+              <span>🔗 ${link.label}</span>
+              <span aria-hidden="true">↗</span>
+            </a>
+          `).join('')}
+        </div>
+      ` : '';
+
       card.innerHTML = `
         <div class="project-card-top">
           <span class="card-category-badge">${project.categoryLabel}</span>
@@ -252,6 +266,7 @@ document.addEventListener('DOMContentLoaded', () => {
           ${waBadge}
         </div>
         <p class="project-card-desc">${project.description}</p>
+        ${linksHtml}
         <div class="project-card-bottom">
           <div class="skills-list">
             ${project.skills.slice(0, 3).map(s => `<span class="skill-tag">${s}</span>`).join('')}
@@ -260,6 +275,16 @@ document.addEventListener('DOMContentLoaded', () => {
           <span class="btn-card-more">상세보기 &rarr;</span>
         </div>
       `;
+
+      // 카드 내 외부 링크 클릭 시 모달 오픈 방지
+      card.querySelectorAll('.btn-url-chip').forEach(linkEl => {
+        linkEl.addEventListener('click', (e) => {
+          e.stopPropagation();
+        });
+        linkEl.addEventListener('keydown', (e) => {
+          e.stopPropagation();
+        });
+      });
 
       card.addEventListener('click', () => openProjectModal(project));
       card.addEventListener('keydown', (e) => {
@@ -296,12 +321,19 @@ document.addEventListener('DOMContentLoaded', () => {
       tr.setAttribute('aria-label', `${project.title} 프로젝트 상세 보기`);
 
       const roleBadgeClass = project.roleType === 'PM' ? 'role-pm' : (project.roleType === 'PL' ? 'role-pl' : '');
+      const projectLinks = project.links || (project.url ? [{ label: project.urlLabel || 'URL', url: project.url }] : []);
+      const tableLinksHtml = projectLinks.map(link => `
+        <a href="${link.url}" target="_blank" rel="noopener noreferrer" class="table-url-badge" title="${link.label} 새 창으로 열기">🔗 ${link.label} ↗</a>
+      `).join('');
 
       tr.innerHTML = `
         <td style="text-align: center; color: var(--text-muted); font-size: 0.8rem;">${project.id}</td>
         <td class="table-title">
-          ${project.title}
-          ${project.hasAccessibility ? '<span class="badge-tag wa" style="margin-left: 6px; font-size: 0.7rem;">WA</span>' : ''}
+          <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+            <span>${project.title}</span>
+            ${project.hasAccessibility ? '<span class="badge-tag wa" style="font-size: 0.7rem;">WA</span>' : ''}
+            ${tableLinksHtml}
+          </div>
         </td>
         <td class="table-period">${project.period}</td>
         <td><strong>${project.client}</strong></td>
@@ -313,6 +345,15 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
         </td>
       `;
+
+      tr.querySelectorAll('.table-url-badge').forEach(linkEl => {
+        linkEl.addEventListener('click', (e) => {
+          e.stopPropagation();
+        });
+        linkEl.addEventListener('keydown', (e) => {
+          e.stopPropagation();
+        });
+      });
 
       tr.addEventListener('click', () => openProjectModal(project));
       tr.addEventListener('keydown', (e) => {
@@ -384,16 +425,32 @@ document.addEventListener('DOMContentLoaded', () => {
     // 스킬
     modalSkills.innerHTML = project.skills.map(s => `<span class="skill-tag" style="font-size: 0.82rem; padding: 4px 10px;">${s}</span>`).join('');
 
-    // 주요 성과 / 포인트
+    // 주요 성과 / 포인트 및 외부 URL 링크
+    const projectLinks = project.links || (project.url ? [{ label: project.urlLabel || '산출물 바로가기', url: project.url }] : []);
+    const modalLinksSection = projectLinks.length > 0 ? `
+      <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-subtle);">
+        <h4 style="font-size: 0.9rem; font-weight: 700; margin-bottom: 10px; color: var(--text-primary);">퍼블리싱 마크업 산출물 URL</h4>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          ${projectLinks.map(link => `
+            <a href="${link.url}" target="_blank" rel="noopener noreferrer" class="btn-primary" style="padding: 8px 16px; font-size: 0.86rem;">
+              <span>🔗 ${link.label} 바로가기</span>
+              <span aria-hidden="true">↗</span>
+            </a>
+          `).join('')}
+        </div>
+      </div>
+    ` : '';
+
     if (project.keyPoints && project.keyPoints.length > 0) {
       modalKeyPoints.innerHTML = `
         <h4 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 10px; color: var(--accent-cyan);">주요 업무 및 성과 포인트</h4>
         <ul style="display: flex; flex-direction: column; gap: 8px;">
           ${project.keyPoints.map(point => `<li class="featured-bullet">${point}</li>`).join('')}
         </ul>
+        ${modalLinksSection}
       `;
     } else {
-      modalKeyPoints.innerHTML = '';
+      modalKeyPoints.innerHTML = modalLinksSection;
     }
 
     modalOverlay.classList.add('active');

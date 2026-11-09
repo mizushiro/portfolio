@@ -1,11 +1,65 @@
 /**
  * 강지연 (Kang Ji-yeon) 포트폴리오 프로젝트 데이터
- * 2001년 ~ 2026년 총 38개 프로젝트 수록
+ * 2001년 ~ 2026년 총 40개 프로젝트 수록
  */
+
+// 퍼블리싱 마크업 산출물 (Live Demo URL) 목록
+const portfolioLiveLinks = [
+  {
+    label: "날씨알리미",
+    url: "https://mizushiro.github.io/nuri-app/html/main.html",
+    client: "기상청"
+  },
+  {
+    label: "날씨누리",
+    url: "https://mizushiro.github.io/nuri-web/",
+    client: "기상청"
+  },
+  {
+    label: "탐나는전",
+    url: "https://mizushiro.github.io/m-pay/html/markup-tnj-list.html",
+    client: "제주시"
+  },
+  {
+    label: "익산다이로움",
+    url: "https://mizushiro.github.io/m-pay/html/markup-list.html",
+    client: "익산시"
+  },
+  {
+    label: "서울페이 AI",
+    url: "https://mizushiro.github.io/AI-search/html/markup-list.html",
+    client: "서울시"
+  }
+];
 
 const portfolioProjects = [
   {
     id: 1,
+    title: "날씨알리미 앱 고도화",
+    period: "2026.09 ~ 2026.10",
+    client: "기상청",
+    company: "아파트앤",
+    role: "PL (웹퍼블리셔)",
+    roleType: "PL",
+    category: "public",
+    categoryLabel: "공공 & 교육",
+    skills: ["HTML5", "CSS3", "JavaScript", "웹접근성", "테마적용"],
+    hasAccessibility: true,
+    featured: true,
+    url: "https://mizushiro.github.io/nuri-app/html/main.html",
+    urlLabel: "날씨알리미",
+    links: [
+      { label: "날씨알리미", url: "https://mizushiro.github.io/nuri-app/html/main.html" }
+    ],
+    description: "대한민국 기상청 대국민 모바일 기상정보 서비스 '날씨알리미' 앱 고도화 퍼블리싱. 사용자 맞춤형 다크/라이트 테마 적용과 엄격한 모바일 웹접근성(WA) 규격을 준수하여 고신뢰성 기상 특보 및 알림 UI 구현.",
+    keyPoints: [
+      "사용자 환경에 맞춘 다크/라이트 등 멀티 테마 적용 및 CSS 변수 아키텍처 설계",
+      "대국민 기상 앱 서비스의 웹접근성(WA) 준수 및 모바일 스크린리더 호환성 확보",
+      "모바일 디바이스 해상도별 최적화된 기상 특보 및 실시간 날씨 알림 UI 마크업"
+    ]
+  },
+  {
+    id: 2,
     title: "암웨이 운영",
     period: "2026.07 ~ 2026.09",
     client: "암웨이",
@@ -25,7 +79,7 @@ const portfolioProjects = [
     ]
   },
   {
-    id: 2,
+    id: 3,
     title: "날씨누리 고도화",
     period: "2026.05 ~ 2026.06",
     client: "기상청",
@@ -37,6 +91,11 @@ const portfolioProjects = [
     skills: ["HTML5", "CSS3", "JavaScript", "웹접근성", "반응형웹"],
     hasAccessibility: true,
     featured: true,
+    url: "https://mizushiro.github.io/nuri-web/",
+    urlLabel: "날씨누리",
+    links: [
+      { label: "날씨누리", url: "https://mizushiro.github.io/nuri-web/" }
+    ],
     description: "대한민국 기상청 대국민 기상정보 포털 '날씨누리' 고도화 퍼블리싱. 재난재해 정보의 신속하고 명확한 전달을 위한 고신뢰성 반응형 UI 및 엄격한 국가 공공기관 웹접근성(WA) 규격 준수.",
     keyPoints: [
       "대국민 서비스에 맞춘 완벽한 웹접근성(KWCAG 2.2) 품질 인증 기준 충족",
@@ -45,7 +104,7 @@ const portfolioProjects = [
     ]
   },
   {
-    id: 3,
+    id: 4,
     title: "롯데 GRS 정산 시스템 구축",
     period: "2026.02 ~ 2026.05",
     client: "롯데GRS",
@@ -65,7 +124,7 @@ const portfolioProjects = [
     ]
   },
   {
-    id: 4,
+    id: 5,
     title: "제주 탐나는전 구축",
     period: "2025.11 ~ 2026.01",
     client: "제주시",
@@ -77,6 +136,11 @@ const portfolioProjects = [
     skills: ["HTML5", "CSS3", "JavaScript", "웹접근성", "모바일 웹"],
     hasAccessibility: true,
     featured: false,
+    url: "https://mizushiro.github.io/m-pay/html/markup-tnj-list.html",
+    urlLabel: "탐나는전",
+    links: [
+      { label: "탐나는전", url: "https://mizushiro.github.io/m-pay/html/markup-tnj-list.html" }
+    ],
     description: "제주 지역화폐 '탐나는전' 플랫폼 신규 구축. 도민과 관광객 누구나 쉽게 결제 및 가맹점 조회를 이용할 수 있도록 모바일 중심 UI 및 웹접근성 인증 기준 적용.",
     keyPoints: [
       "공공 지역화폐 플랫폼 웹접근성 인증마크 획득 지원",
@@ -85,7 +149,7 @@ const portfolioProjects = [
     ]
   },
   {
-    id: 5,
+    id: 6,
     title: "브라보 코리아 고도화",
     period: "2025.07 ~ 2025.10",
     client: "전북은행",
@@ -105,7 +169,7 @@ const portfolioProjects = [
     ]
   },
   {
-    id: 6,
+    id: 7,
     title: "디지털 교과서 (중학 수학)",
     period: "2025.04 ~ 2025.06",
     client: "미래엔",
@@ -125,7 +189,32 @@ const portfolioProjects = [
     ]
   },
   {
-    id: 7,
+    id: 8,
+    title: "서울페이 AI",
+    period: "2025.04",
+    client: "서울시",
+    company: "비즈플레이",
+    role: "PL (웹퍼블리셔)",
+    roleType: "PL",
+    category: "public",
+    categoryLabel: "공공 & 교육",
+    skills: ["HTML5", "CSS3", "JavaScript", "웹접근성"],
+    hasAccessibility: true,
+    featured: false,
+    url: "https://mizushiro.github.io/AI-search/html/markup-list.html",
+    urlLabel: "서울페이 AI",
+    links: [
+      { label: "서울페이 AI", url: "https://mizushiro.github.io/AI-search/html/markup-list.html" }
+    ],
+    description: "서울시 지역화폐 및 가맹점 통합 플랫폼 '서울페이+' AI 검색 서비스 퍼블리싱. 시민들이 원하는 가맹점과 혜택 정보를 대화형·지능형 인터페이스로 손쉽게 탐색할 수 있도록 모바일 웹접근성 표준 준수 및 직관적 UI 구현.",
+    keyPoints: [
+      "공공 결제 플랫폼 웹접근성 가이드라인 준수 및 모바일 스크린리더 대응",
+      "AI 검색 프롬프트, 추천 키워드 및 가맹점 검색 결과 카드 UI 마크업",
+      "다양한 모바일 뷰포트 환경에 최적화된 유연한 반응형 레이아웃 설계"
+    ]
+  },
+  {
+    id: 9,
     title: "익산 다이로움 구축",
     period: "2025.01 ~ 2025.03",
     client: "익산시",
@@ -137,6 +226,11 @@ const portfolioProjects = [
     skills: ["HTML5", "CSS3", "JavaScript", "웹접근성", "핀테크"],
     hasAccessibility: true,
     featured: false,
+    url: "https://mizushiro.github.io/m-pay/html/markup-list.html",
+    urlLabel: "익산다이로움",
+    links: [
+      { label: "익산다이로움", url: "https://mizushiro.github.io/m-pay/html/markup-list.html" }
+    ],
     description: "익산시 복합 공공 배달 및 지역화폐 포털 '익산 다이로움' 구축. 시민들의 편리한 가맹점 이용 및 혜택 조회를 위한 직관적 카드형 UI 및 웹접근성 구현.",
     keyPoints: [
       "공공기관 웹접근성 표준 준수 및 심사 통과",
@@ -145,7 +239,7 @@ const portfolioProjects = [
     ]
   },
   {
-    id: 8,
+    id: 10,
     title: "디지털 교과서 (중학 정보 / 고등 정보)",
     period: "2024.09 ~ 2024.12",
     client: "미래엔",
@@ -165,7 +259,7 @@ const portfolioProjects = [
     ]
   },
   {
-    id: 9,
+    id: 11,
     title: "스토브(STOVE) 개편 / 스튜디오 개편 / 디자인 시스템 구축",
     period: "2021.05 ~ 2024.09",
     client: "스마일게이트 홀딩스",
@@ -186,7 +280,7 @@ const portfolioProjects = [
     ]
   },
   {
-    id: 10,
+    id: 12,
     title: "GS fresh 운영 고도화",
     period: "2020.11 ~ 2021.04",
     client: "GS fresh",
@@ -206,7 +300,7 @@ const portfolioProjects = [
     ]
   },
   {
-    id: 11,
+    id: 13,
     title: "아파트엔 구축",
     period: "2020.08 ~ 2020.10",
     client: "아파트엔",
@@ -226,7 +320,7 @@ const portfolioProjects = [
     ]
   },
   {
-    id: 12,
+    id: 14,
     title: "암웨이 고도화",
     period: "2020.01 ~ 2020.07",
     client: "암웨이",
@@ -246,7 +340,7 @@ const portfolioProjects = [
     ]
   },
   {
-    id: 13,
+    id: 15,
     title: "Ebay 버티컬 고도화",
     period: "2019.07 ~ 2019.12",
     client: "이베이",
@@ -266,7 +360,7 @@ const portfolioProjects = [
     ]
   },
   {
-    id: 14,
+    id: 16,
     title: "STOVE 입점사 VOC 지원",
     period: "2018.06 ~ 2019.06",
     client: "스마일게이트 홀딩스",
@@ -286,7 +380,7 @@ const portfolioProjects = [
     ]
   },
   {
-    id: 15,
+    id: 17,
     title: "푸르덴셜 사이버창구 앱 구축",
     period: "2018.02 ~ 2018.05",
     client: "푸르덴셜생명",
@@ -306,7 +400,7 @@ const portfolioProjects = [
     ]
   },
   {
-    id: 16,
+    id: 18,
     title: "현대백화점 인터넷면세점 구축",
     period: "2017.06 ~ 2018.01",
     client: "현대백화점인터넷면세점",
@@ -326,7 +420,7 @@ const portfolioProjects = [
     ]
   },
   {
-    id: 17,
+    id: 19,
     title: "AJ 렌터카 ERP 시스템",
     period: "2017.03 ~ 2017.05",
     client: "AJ 렌터카",
@@ -346,7 +440,7 @@ const portfolioProjects = [
     ]
   },
   {
-    id: 18,
+    id: 20,
     title: "홈앤쇼핑 UI 개선 고도화",
     period: "2016.10 ~ 2017.02",
     client: "홈앤쇼핑",
@@ -366,7 +460,7 @@ const portfolioProjects = [
     ]
   },
   {
-    id: 19,
+    id: 21,
     title: "삼성카드 1.6 고도화",
     period: "2016.07 ~ 2016.09",
     client: "삼성카드",
@@ -386,7 +480,7 @@ const portfolioProjects = [
     ]
   },
   {
-    id: 20,
+    id: 22,
     title: "기아자동차 UK 프로젝트",
     period: "2016.02 ~ 2016.06",
     client: "기아자동차",
@@ -406,7 +500,7 @@ const portfolioProjects = [
     ]
   },
   {
-    id: 21,
+    id: 23,
     title: "교보생명 광화문 읽거느 반응형 구축",
     period: "2015.09 ~ 2016.01",
     client: "교보생명",
@@ -426,7 +520,7 @@ const portfolioProjects = [
     ]
   },
   {
-    id: 22,
+    id: 24,
     title: "가게노트 구축",
     period: "2014.12 ~ 2015.08",
     client: "굿바이노트",
@@ -446,7 +540,7 @@ const portfolioProjects = [
     ]
   },
   {
-    id: 23,
+    id: 25,
     title: "GS shop 고도화",
     period: "2014.09 ~ 2014.11",
     client: "GS shop",
@@ -466,7 +560,7 @@ const portfolioProjects = [
     ]
   },
   {
-    id: 24,
+    id: 26,
     title: "신한카드 운영 고도화",
     period: "2013.10 ~ 2014.08",
     client: "신한카드",
@@ -486,7 +580,7 @@ const portfolioProjects = [
     ]
   },
   {
-    id: 25,
+    id: 27,
     title: "삼성웰넷 구축",
     period: "2013.04 ~ 2013.09",
     client: "삼성전자",
@@ -506,7 +600,7 @@ const portfolioProjects = [
     ]
   },
   {
-    id: 26,
+    id: 28,
     title: "삼성와이즈미팅 구축",
     period: "2013.02 ~ 2013.03",
     client: "삼성 SDS",
@@ -526,7 +620,7 @@ const portfolioProjects = [
     ]
   },
   {
-    id: 27,
+    id: 29,
     title: "한국산업기술평가관리원 Redis 개편",
     period: "2012.11 ~ 2013.01",
     client: "한국산업기술평가관리원",
@@ -546,7 +640,7 @@ const portfolioProjects = [
     ]
   },
   {
-    id: 28,
+    id: 30,
     title: "삼성닷컴, CTOSS 구축",
     period: "2012.04 ~ 2012.10",
     client: "삼성전자",
@@ -566,7 +660,7 @@ const portfolioProjects = [
     ]
   },
   {
-    id: 29,
+    id: 31,
     title: "Samsungadhub 구축",
     period: "2011.09 ~ 2012.03",
     client: "삼성 SDS",
@@ -586,7 +680,7 @@ const portfolioProjects = [
     ]
   },
   {
-    id: 30,
+    id: 32,
     title: "쿠폰 차트 사이트 구축",
     period: "2011.02 ~ 2011.08",
     client: "쿠폰차트",
@@ -606,7 +700,7 @@ const portfolioProjects = [
     ]
   },
   {
-    id: 31,
+    id: 33,
     title: "건강보험심사평가원 의약품 정보센터 구축",
     period: "2010.09 ~ 2011.01",
     client: "건강보험심사평가원",
@@ -626,7 +720,7 @@ const portfolioProjects = [
     ]
   },
   {
-    id: 32,
+    id: 34,
     title: "양재 aT센터 대표 포털 구축",
     period: "2010.06 ~ 2010.08",
     client: "aT 센터",
@@ -646,7 +740,7 @@ const portfolioProjects = [
     ]
   },
   {
-    id: 33,
+    id: 35,
     title: "국토해양부 대국민 포털 구축",
     period: "2010.02 ~ 2010.05",
     client: "국토해양부",
@@ -666,7 +760,7 @@ const portfolioProjects = [
     ]
   },
   {
-    id: 34,
+    id: 36,
     title: "보건복지부 금연길라잡이 / 건강정보광장 구축",
     period: "2009.08 ~ 2010.01",
     client: "보건복지부",
@@ -686,7 +780,7 @@ const portfolioProjects = [
     ]
   },
   {
-    id: 35,
+    id: 37,
     title: "11번가 통합 프로젝트",
     period: "2009.05 ~ 2009.07",
     client: "11번가",
@@ -706,7 +800,7 @@ const portfolioProjects = [
     ]
   },
   {
-    id: 36,
+    id: 38,
     title: "비밀닷컴(삼성에버랜드) 운영 및 고도화",
     period: "2008.07 ~ 2009.03",
     client: "삼성에버랜드",
@@ -726,7 +820,7 @@ const portfolioProjects = [
     ]
   },
   {
-    id: 37,
+    id: 39,
     title: "현대상선 대표 웹사이트 구축",
     period: "2008.01 ~ 2008.06",
     client: "현대상선",
@@ -746,7 +840,7 @@ const portfolioProjects = [
     ]
   },
   {
-    id: 38,
+    id: 40,
     title: "교육발전소 웹사이트 및 교육 솔루션 제작",
     period: "2001.02 ~ 2007.12",
     client: "교육발전소",
@@ -770,14 +864,14 @@ const portfolioProjects = [
 // 카테고리 통계 및 메타데이터
 const portfolioStats = {
   totalYears: "24+",
-  totalProjects: 38,
+  totalProjects: 40,
   accessibilityRate: "100%",
   plPmRatio: "85%",
   categories: [
-    { key: "all", name: "전체보기", count: 38 },
-    { key: "featured", name: "대표 프로젝트", count: 6 },
+    { key: "all", name: "전체보기", count: 40 },
+    { key: "featured", name: "대표 프로젝트", count: 7 },
     { key: "design-system", name: "디자인시스템·플랫폼", count: 1 },
-    { key: "public", name: "공공기관·지자체", count: 10 },
+    { key: "public", name: "공공기관·지자체", count: 12 },
     { key: "finance", name: "금융·보험·핀테크", count: 7 },
     { key: "commerce", name: "이커머스·유통", count: 8 },
     { key: "enterprise", name: "엔터프라이즈·글로벌", count: 9 }
