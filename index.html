@@ -842,9 +842,25 @@
                 aria-controls="firebase-guide-box">
                 ⚙️ Firebase DB 설정 안내
               </button>
-              <button type="button" class="btn-admin-login" id="btn-admin-auth" hidden>
+              <button type="button" class="btn-admin-login" id="btn-admin-auth" aria-expanded="false"
+                aria-controls="admin-login-box">
                 🔐 관리자(강지연) 로그인
               </button>
+            </div>
+          </div>
+
+          <!-- Collapsible Admin Login Box -->
+          <div class="firebase-guide-box" id="admin-login-box" hidden style="margin-bottom: 16px;">
+            <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;">
+              <div>
+                <h3 class="firebase-guide-title" style="margin-bottom: 4px;">🔐 관리자(강지연) 인증</h3>
+                <p style="font-size: 0.82rem; color: var(--text-muted); margin: 0;">관리자 비밀번호(기본값: <code>0000</code>, <code>firebase-config.js</code>에서 변경 가능)를 입력하시면 모든 비밀글 열람·공식 답변·게시글 관리가 즉시 활성화됩니다.</p>
+              </div>
+              <form id="admin-login-form" style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
+                <input type="password" id="admin-pass-input" class="form-input" style="width: 180px; padding: 8px 12px;" placeholder="관리자 비밀번호 입력" aria-label="관리자 비밀번호 입력" required>
+                <button type="submit" class="btn-primary" style="padding: 8px 16px; font-size: 0.85rem;">인증 확인</button>
+                <button type="button" id="btn-admin-google-login" class="btn-secondary" style="padding: 8px 14px; font-size: 0.82rem;">Google 계정 인증</button>
+              </form>
             </div>
           </div>
 

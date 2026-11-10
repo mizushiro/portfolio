@@ -497,8 +497,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // 9. 프로젝트 문의 & 방명록 게시판 (Firebase Cloud Firestore + 답글 + 비밀글)
   // --------------------------------------------------------------------------
   const BOARD_STORAGE_KEY = 'kjy_portfolio_board_v2';
-  const MASTER_PASS = '0000';
+  const MASTER_PASS = window.PORTFOLIO_ADMIN_PASS || '0000';
   const ADMIN_EMAIL = window.PORTFOLIO_ADMIN_EMAIL || 'mizushiro@naver.com';
+  const SECRET_CIPHER_KEY = 'kjy_portfolio_secret_key_2026';
 
   const CATEGORY_META = {
     project: { label: '💼 프로젝트 문의', className: 'project' },
@@ -521,7 +522,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let fbDb = null;
   let fbModules = null;
   let currentUser = null;
-  let isAdminUser = false;
+  let isAdminUser = sessionStorage.getItem('kjy_admin_mode') === 'true';
 
   // Web Crypto SHA-256 Helper (64-char hex for Firestore security rules)
   const sha256Hex = async (text) => {
@@ -532,40 +533,60 @@ document.addEventListener('DOMContentLoaded', () => {
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   };
 
-  // Client-side Secret Content Cipher (prevents plaintext exposure in Firestore)
-  const encryptSecretContent = (plainText, password) => {
+  // Client-side Secret Content Cipher (uses shared application cipher key so both the author and admin can decrypt)
+  const encryptSecretContent = (plainText) => {
     try {
       const textBytes = new TextEncoder().encode(plainText);
-      const keyBytes = new TextEncoder().encode(password || 'key');
+      const keyBytes = new TextEncoder().encode(SECRET_CIPHER_KEY);
       const out = new Uint8Array(textBytes.length);
       for (let i = 0; i < textBytes.length; i++) {
         out[i] = textBytes[i] ^ keyBytes[i % keyBytes.length];
       }
       let binary = '';
       out.forEach(b => { binary += String.fromCharCode(b); });
-      return 'ENC1:' + btoa(binary);
+      return 'ENC2:' + btoa(binary);
     } catch (e) {
       return plainText;
     }
   };
 
-  const decryptSecretContent = (cipherText, password) => {
-    if (!String(cipherText).startsWith('ENC1:')) return cipherText;
-    try {
-      const binary = atob(String(cipherText).slice(5));
-      const encBytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) {
-        encBytes[i] = binary.charCodeAt(i);
+  const decryptSecretContent = (cipherText, fallbackPassword = '') => {
+    const raw = String(cipherText || '');
+    if (raw.startsWith('ENC2:')) {
+      try {
+        const binary = atob(raw.slice(5));
+        const encBytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+          encBytes[i] = binary.charCodeAt(i);
+        }
+        const keyBytes = new TextEncoder().encode(SECRET_CIPHER_KEY);
+        const out = new Uint8Array(encBytes.length);
+        for (let i = 0; i < encBytes.length; i++) {
+          out[i] = encBytes[i] ^ keyBytes[i % keyBytes.length];
+        }
+        return new TextDecoder().decode(out);
+      } catch (e) {
+        return '[암호화된 비밀글입니다]';
       }
-      const keyBytes = new TextEncoder().encode(password || 'key');
-      const out = new Uint8Array(encBytes.length);
-      for (let i = 0; i < encBytes.length; i++) {
-        out[i] = encBytes[i] ^ keyBytes[i % keyBytes.length];
-      }
-      return new TextDecoder().decode(out);
-    } catch (e) {
-      return '[암호화된 비밀글입니다]';
     }
+    if (raw.startsWith('ENC1:')) {
+      try {
+        const binary = atob(raw.slice(5));
+        const encBytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+          encBytes[i] = binary.charCodeAt(i);
+        }
+        const keyBytes = new TextEncoder().encode(fallbackPassword || MASTER_PASS);
+        const out = new Uint8Array(encBytes.length);
+        for (let i = 0; i < encBytes.length; i++) {
+          out[i] = encBytes[i] ^ keyBytes[i % keyBytes.length];
+        }
+        return new TextDecoder().decode(out);
+      } catch (e) {
+        return '[암호화된 비밀글입니다]';
+      }
+    }
+    return raw;
   };
 
   const loadBoardPosts = () => {
@@ -626,6 +647,99 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnToggleFbGuide = document.getElementById('btn-toggle-fb-guide');
   const firebaseGuideBox = document.getElementById('firebase-guide-box');
   const btnAdminAuth = document.getElementById('btn-admin-auth');
+  const adminLoginBox = document.getElementById('admin-login-box');
+  const adminLoginForm = document.getElementById('admin-login-form');
+  const adminPassInput = document.getElementById('admin-pass-input');
+  const btnAdminGoogleLogin = document.getElementById('btn-admin-google-login');
+
+  const syncAdminButtonUI = () => {
+    if (!btnAdminAuth) return;
+    btnAdminAuth.removeAttribute('hidden');
+    if (isAdminUser) {
+      btnAdminAuth.textContent = '🎖️ 관리자(강지연) 인증됨 · 로그아웃';
+      btnAdminAuth.classList.add('logged-in');
+      btnAdminAuth.setAttribute('aria-expanded', 'false');
+      if (adminLoginBox) adminLoginBox.setAttribute('hidden', '');
+    } else {
+      btnAdminAuth.textContent = '🔐 관리자(강지연) 로그인';
+      btnAdminAuth.classList.remove('logged-in');
+    }
+  };
+
+  if (btnAdminAuth) {
+    syncAdminButtonUI();
+    btnAdminAuth.addEventListener('click', async () => {
+      if (isAdminUser) {
+        isAdminUser = false;
+        sessionStorage.removeItem('kjy_admin_mode');
+        if (fbAuth && fbModules && fbModules.signOut) {
+          try {
+            await fbModules.signOut(fbAuth);
+            if (fbModules.signInAnonymously) await fbModules.signInAnonymously(fbAuth);
+          } catch (_) {}
+        }
+        syncAdminButtonUI();
+        renderBoardPosts();
+        showToast('관리자 모드에서 로그아웃되었습니다.');
+        return;
+      }
+
+      if (adminLoginBox) {
+        const isHidden = adminLoginBox.hasAttribute('hidden');
+        if (isHidden) {
+          adminLoginBox.removeAttribute('hidden');
+          btnAdminAuth.setAttribute('aria-expanded', 'true');
+          adminPassInput?.focus();
+        } else {
+          adminLoginBox.setAttribute('hidden', '');
+          btnAdminAuth.setAttribute('aria-expanded', 'false');
+        }
+      }
+    });
+  }
+
+  if (adminLoginForm && adminPassInput) {
+    adminLoginForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const inputPass = adminPassInput.value.trim();
+      if (!inputPass) return;
+      if (inputPass === MASTER_PASS) {
+        isAdminUser = true;
+        sessionStorage.setItem('kjy_admin_mode', 'true');
+        adminPassInput.value = '';
+        syncAdminButtonUI();
+        renderBoardPosts();
+        showToast('🎖️ 관리자(강지연) 로그인 완료! 모든 비밀글 열람 및 관리 권한이 활성화되었습니다.');
+      } else {
+        showToast('⚠️ 관리자 비밀번호가 일치하지 않습니다.');
+        adminPassInput.focus();
+      }
+    });
+  }
+
+  if (btnAdminGoogleLogin) {
+    btnAdminGoogleLogin.addEventListener('click', async () => {
+      if (!fbAuth || !fbModules || !fbModules.GoogleAuthProvider || !fbModules.signInWithPopup) {
+        showToast('⚠️ Firebase 연결 후 Google 로그인을 사용하실 수 있습니다. 비밀번호 인증을 이용해 주세요.');
+        return;
+      }
+      try {
+        const provider = new fbModules.GoogleAuthProvider();
+        const res = await fbModules.signInWithPopup(fbAuth, provider);
+        if (res.user && res.user.email && res.user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+          isAdminUser = true;
+          sessionStorage.setItem('kjy_admin_mode', 'true');
+          syncAdminButtonUI();
+          renderBoardPosts();
+          showToast('🎖️ Google 관리자 계정(강지연) 인증이 완료되었습니다!');
+        } else {
+          showToast(`⚠️ 등록된 관리자 이메일(${ADMIN_EMAIL})과 일치하지 않습니다.`);
+        }
+      } catch (err) {
+        showToast('⚠️ Google 로그인을 사용하려면 Firebase 콘솔 Authentication에서 Google 로그인을 활성화해 주세요. (비밀번호 인증은 바로 사용 가능합니다)');
+      }
+    });
+  }
 
   // Toggle Firebase Setup Guide Box
   if (btnToggleFbGuide && firebaseGuideBox) {
@@ -760,24 +874,6 @@ document.addEventListener('DOMContentLoaded', () => {
         );
       };
 
-      if (btnAdminAuth) {
-        btnAdminAuth.removeAttribute('hidden');
-        btnAdminAuth.addEventListener('click', async () => {
-          if (isAdminUser) {
-            await authMod.signOut(fbAuth);
-            try { await authMod.signInAnonymously(fbAuth); } catch (_) {}
-            showToast('로그아웃되었습니다.');
-          } else {
-            try {
-              const provider = new authMod.GoogleAuthProvider();
-              await authMod.signInWithPopup(fbAuth, provider);
-            } catch (err) {
-              showToast('⚠️ Google 로그인에 실패했습니다. Firebase 콘솔에서 Google 로그인을 활성화해 주세요.');
-            }
-          }
-        });
-      }
-
       authMod.onAuthStateChanged(fbAuth, async (user) => {
         if (!user) {
           try {
@@ -791,17 +887,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         currentUser = user;
-        isAdminUser = Boolean(user.email && user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase());
-
-        if (btnAdminAuth) {
-          if (isAdminUser) {
-            btnAdminAuth.textContent = '🎖️ 관리자(강지연) 인증됨 · 로그아웃';
-            btnAdminAuth.classList.add('logged-in');
-          } else {
-            btnAdminAuth.textContent = '🔐 관리자(강지연) 로그인';
-            btnAdminAuth.classList.remove('logged-in');
-          }
+        if (user.email && user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+          isAdminUser = true;
+          sessionStorage.setItem('kjy_admin_mode', 'true');
         }
+        syncAdminButtonUI();
 
         startFirestoreSubscriptions();
         renderBoardPosts();
@@ -858,7 +948,7 @@ document.addEventListener('DOMContentLoaded', () => {
     filtered.forEach((post) => {
       const postKey = String(post.id);
       const isOpen = openPostIds.has(postKey);
-      const isUnlocked = !post.isSecret || unlockedSecretIds.has(postKey);
+      const isUnlocked = !post.isSecret || isAdminUser || unlockedSecretIds.has(postKey);
       const catMeta = CATEGORY_META[post.category] || CATEGORY_META.project;
       const replies = Array.isArray(post.replies) ? post.replies : [];
       const hasPublisherReply = replies.some(r => r.isPublisher);
@@ -871,7 +961,7 @@ document.addEventListener('DOMContentLoaded', () => {
         : `<span class="board-status-badge pending">💬 답글가능</span>`;
 
       const secretIconHtml = post.isSecret
-        ? `<span title="비밀글" aria-label="비밀글">🔒</span>`
+        ? `<span title="비밀글" aria-label="비밀글">${isAdminUser ? '🔓' : '🔒'}</span>`
         : '';
 
       const replyCountHtml = replies.length > 0
@@ -885,7 +975,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="secret-lock-box">
             <p style="font-size: 0.92rem; color: var(--text-secondary);">
               🔒 <strong>비공개(비밀글)로 작성된 게시글입니다.</strong><br>
-              <span style="font-size: 0.8rem; color: var(--text-muted);">작성 시 설정한 비밀번호를 입력하시면 본문 및 답글을 확인하실 수 있습니다.</span>
+              <span style="font-size: 0.8rem; color: var(--text-muted);">작성자 비밀번호 또는 관리자 비밀번호를 입력하시면 본문 및 답글을 확인하실 수 있습니다.</span>
             </p>
             <div class="secret-unlock-row">
               <input type="password" class="form-input secret-pass-input" style="width: 190px; padding: 8px 12px;" placeholder="비밀번호 입력" aria-label="비밀글 열람 비밀번호 입력">
@@ -895,7 +985,7 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
       } else {
         const displayContent = post.isSecret
-          ? (decryptedSecretsMap.get(postKey) || post.content)
+          ? (decryptedSecretsMap.get(postKey) || decryptSecretContent(post.content))
           : post.content;
 
         const repliesListHtml = replies.length > 0
@@ -1078,17 +1168,20 @@ document.addEventListener('DOMContentLoaded', () => {
       const deletePostBtn = itemEl.querySelector('.btn-delete-post');
       if (deletePostBtn) {
         deletePostBtn.addEventListener('click', async () => {
-          const inputPass = window.prompt('게시글 삭제를 위해 작성 시 입력한 비밀번호를 입력해 주세요.');
-          if (inputPass === null) return;
-          const inputHash = await sha256Hex(inputPass.trim());
-          const isMatch = (post.passwordHash && inputHash === post.passwordHash) ||
-                          (post.password && inputPass.trim() === post.password) ||
-                          inputPass.trim() === MASTER_PASS ||
-                          isAdminUser;
+          if (isAdminUser) {
+            if (!window.confirm('관리자 권한으로 이 게시글을 삭제하시겠습니까?')) return;
+          } else {
+            const inputPass = window.prompt('게시글 삭제를 위해 작성 시 입력한 비밀번호를 입력해 주세요.');
+            if (inputPass === null) return;
+            const inputHash = await sha256Hex(inputPass.trim());
+            const isMatch = (post.passwordHash && inputHash === post.passwordHash) ||
+                            (post.password && inputPass.trim() === post.password) ||
+                            inputPass.trim() === MASTER_PASS;
 
-          if (!isMatch) {
-            showToast('⚠️ 비밀번호가 일치하지 않습니다.');
-            return;
+            if (!isMatch) {
+              showToast('⚠️ 비밀번호가 일치하지 않습니다.');
+              return;
+            }
           }
 
           if (isCloudConnected && fbDb && fbModules) {
@@ -1116,17 +1209,20 @@ document.addEventListener('DOMContentLoaded', () => {
           const targetReply = (post.replies || []).find(r => String(r.id) === replyId);
           if (!targetReply) return;
 
-          const inputPass = window.prompt('답글 삭제를 위해 비밀번호를 입력해 주세요.');
-          if (inputPass === null) return;
-          const inputHash = await sha256Hex(inputPass.trim());
-          const isMatch = (targetReply.passwordHash && inputHash === targetReply.passwordHash) ||
-                          (targetReply.password && inputPass.trim() === targetReply.password) ||
-                          inputPass.trim() === MASTER_PASS ||
-                          isAdminUser;
+          if (isAdminUser) {
+            if (!window.confirm('관리자 권한으로 이 답글을 삭제하시겠습니까?')) return;
+          } else {
+            const inputPass = window.prompt('답글 삭제를 위해 비밀번호를 입력해 주세요.');
+            if (inputPass === null) return;
+            const inputHash = await sha256Hex(inputPass.trim());
+            const isMatch = (targetReply.passwordHash && inputHash === targetReply.passwordHash) ||
+                            (targetReply.password && inputPass.trim() === targetReply.password) ||
+                            inputPass.trim() === MASTER_PASS;
 
-          if (!isMatch) {
-            showToast('⚠️ 비밀번호가 일치하지 않습니다.');
-            return;
+            if (!isMatch) {
+              showToast('⚠️ 비밀번호가 일치하지 않습니다.');
+              return;
+            }
           }
 
           if (isCloudConnected && fbDb && fbModules) {

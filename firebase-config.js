@@ -17,9 +17,11 @@ window.FIREBASE_CONFIG = {
   projectId: "portfolio-4834a",
   storageBucket: "portfolio-4834a.firebasestorage.app",
   messagingSenderId: "607665077824",
-  appId: "1:607665077824:web:51a959ba7ca4cfc198a9a5"
+  appId: "1:607665077824:web:aecdc5cdc164a27998a9a5"
 };
 
-// 포트폴리오 관리자(강지연 퍼블리셔) 이메일 (Google 로그인 시 공식 답변 배지 및 전체 관리 권한 부여)
+// 포트폴리오 관리자(강지연 퍼블리셔) 이메일 및 마스터 비밀번호
+// - 게시판 상단 [🔐 관리자(강지연) 로그인] 클릭 또는 비밀글 비밀번호란에 관리자 비밀번호 입력 시 모든 비밀글 열람·답변·삭제가 가능합니다.
 window.PORTFOLIO_ADMIN_EMAIL = "mizushiro@naver.com";
+window.PORTFOLIO_ADMIN_PASS = "0000";
 
