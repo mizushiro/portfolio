@@ -496,7 +496,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // --------------------------------------------------------------------------
   // 9. 프로젝트 문의 & 방명록 게시판 (Q&A Board + 답글 + 비밀글 + GitHub 연동)
   // --------------------------------------------------------------------------
-  const BOARD_STORAGE_KEY = 'kjy_portfolio_board_v1';
+  const BOARD_STORAGE_KEY = 'kjy_portfolio_board_v2';
   const MASTER_PASS = '0000';
 
   const CATEGORY_META = {
@@ -505,85 +505,23 @@ document.addEventListener('DOMContentLoaded', () => {
     guestbook: { label: '✨ 방명록/응원', className: 'guestbook' }
   };
 
-  const defaultPosts = [
-    {
-      id: 103,
-      category: 'project',
-      author: '김민수 PM (공공SI 사업부)',
-      password: '1234',
-      isSecret: false,
-      title: '하반기 공공기관 포털 고도화 및 웹접근성(WA) PL 투입 일정 문의드립니다.',
-      content: '안녕하세요 강지연 차장님. 기상청 날씨누리 및 날씨알리미 앱 고도화 산출물 마크업을 인상 깊게 보았습니다.\n오는 11월부터 약 5개월간 서울 상주로 진행되는 대국민 공공 포털 웹접근성(KWCAG 2.2) 리뉴얼 프로젝트에 퍼블리싱 PL로 참여 가능하신지 문의드립니다.',
-      date: '2026.10.28',
-      replies: [
-        {
-          id: 201,
-          author: '강지연',
-          isPublisher: true,
-          password: '0000',
-          date: '2026.10.28',
-          content: '안녕하세요 김민수 PM님! 포트폴리오를 살펴봐 주셔서 감사합니다.\n2026년 11월 투입 일정 가능하며, 공공기관 KWCAG 2.2 인증 심사 및 반응형 UI 표준 가이드 수립까지 책임지고 리드 가능합니다. 이메일(mizushiro@naver.com)로 세부 일정을 보내주시면 빠르게 회신드리겠습니다!'
-        }
-      ]
-    },
-    {
-      id: 102,
-      category: 'recruit',
-      author: '박지훈 팀장 (핀테크 플랫폼)',
-      password: '1234',
-      isSecret: true,
-      title: '차세대 금융 디자인 시스템(Storybook/React) 구축 관련 비공개 제안드립니다.',
-      content: '안녕하세요. 스마일게이트 STOVE 디자인 시스템 및 전북은행 브라보 코리아 이력을 보고 연락드립니다.\n당사 차세대 금융 디자인 시스템 구축 TF의 시니어 UI 개발/퍼블리싱 리드 포지션을 제안드리고자 합니다.',
-      date: '2026.10.19',
-      replies: [
-        {
-          id: 202,
-          author: '강지연',
-          isPublisher: true,
-          password: '0000',
-          date: '2026.10.19',
-          content: '박지훈 팀장님, 소중한 제안 감사합니다! 디자인 토큰 체계 및 금융 웹접근성 컴포넌트 설계 경험이 풍부하여 큰 도움이 될 수 있을 것 같습니다. 메일로 연락드리겠습니다.'
-        }
-      ]
-    },
-    {
-      id: 101,
-      category: 'guestbook',
-      author: '이서연 프론트엔드 개발자',
-      password: '1234',
-      isSecret: false,
-      title: '함께 프로젝트 진행했던 프론트엔드 개발자입니다! 포트폴리오가 정말 멋지네요 👍',
-      content: '차장님! 지난 프로젝트에서 컴포넌트 마크업과 접근성 아키텍처를 너무 깔끔하게 잡아주셔서 개발 연동이 정말 수월했습니다. 새로 정리하신 라이브 데모 URL들도 한눈에 보기 좋네요. 늘 응원합니다!',
-      date: '2026.10.12',
-      replies: [
-        {
-          id: 203,
-          author: '강지연',
-          isPublisher: true,
-          password: '0000',
-          date: '2026.10.12',
-          content: '서연님 반갑습니다! 함께 호흡을 맞춰 작업했던 기억이 새록새록 나네요. 따뜻한 응원 메시지 정말 고맙고 다음 프로젝트에서도 또 좋은 인연으로 만나길 바랍니다 😊'
-        }
-      ]
-    }
-  ];
-
   let boardPosts = [];
   let currentBoardCat = 'all';
-  const openPostIds = new Set([103]); // 첫 번째 게시글 기본 펼침
+  const openPostIds = new Set();
   const unlockedSecretIds = new Set();
 
   const loadBoardPosts = () => {
     try {
+      // 이전 샘플 데이터 키(v1) 정리
+      localStorage.removeItem('kjy_portfolio_board_v1');
       const saved = localStorage.getItem(BOARD_STORAGE_KEY);
       if (saved) {
         boardPosts = JSON.parse(saved);
       } else {
-        boardPosts = defaultPosts;
-        localStorage.setItem(BOARD_STORAGE_KEY, JSON.stringify(boardPosts));
+        boardPosts = [];
       }
     } catch (e) {
-      boardPosts = [...defaultPosts];
+      boardPosts = [];
     }
   };
 
@@ -695,7 +633,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="secret-lock-box">
             <p style="font-size: 0.92rem; color: var(--text-secondary);">
               🔒 <strong>비공개(비밀글)로 작성된 게시글입니다.</strong><br>
-              <span style="font-size: 0.8rem; color: var(--text-muted);">작성 시 설정한 비밀번호를 입력하시면 본문 및 답글을 확인하실 수 있습니다. (데모 확인용: <code>1234</code> 또는 <code>0000</code>)</span>
+              <span style="font-size: 0.8rem; color: var(--text-muted);">작성 시 설정한 비밀번호를 입력하시면 본문 및 답글을 확인하실 수 있습니다.</span>
             </p>
             <div class="secret-unlock-row">
               <input type="password" class="form-input secret-pass-input" style="width: 190px; padding: 8px 12px;" placeholder="비밀번호 입력" aria-label="비밀글 열람 비밀번호 입력">
