@@ -94,7 +94,8 @@ const portfolioProjects = [
     url: "https://mizushiro.github.io/nuri-web/",
     urlLabel: "날씨누리",
     links: [
-      { label: "날씨누리", url: "https://mizushiro.github.io/nuri-web/" }
+      { label: "날씨누리", url: "https://mizushiro.github.io/nuri-web/" },
+      { label: "날씨누리지도", url: "https://mizushiro.github.io/weather-nuri/html/map/map.html" }
     ],
     description: "대한민국 기상청 대국민 기상정보 포털 '날씨누리' 고도화 퍼블리싱. 재난재해 정보의 신속하고 명확한 전달을 위한 고신뢰성 반응형 UI 및 엄격한 국가 공공기관 웹접근성(WA) 규격 준수.",
     keyPoints: [
