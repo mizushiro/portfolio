@@ -1381,7 +1381,28 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --------------------------------------------------------------------------
-  // 10. 초기 렌더링 실행
+  // 10. 우측 하단 TOP 버튼 (Scroll to Top)
+  // --------------------------------------------------------------------------
+  const scrollTopBtn = document.getElementById('btn-scroll-top');
+  if (scrollTopBtn) {
+    const toggleScrollTopBtn = () => {
+      if (window.scrollY > 300) {
+        scrollTopBtn.classList.add('visible');
+      } else {
+        scrollTopBtn.classList.remove('visible');
+      }
+    };
+
+    window.addEventListener('scroll', toggleScrollTopBtn, { passive: true });
+    toggleScrollTopBtn();
+
+    scrollTopBtn.addEventListener('click', () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  }
+
+  // --------------------------------------------------------------------------
+  // 11. 초기 렌더링 실행
   // --------------------------------------------------------------------------
   renderCategoryTabs();
   filterAndRenderProjects();

@@ -2387,11 +2387,55 @@ img, svg {
   margin-bottom: 24px;
 }
 
+/* Floating Scroll-to-Top Button */
+.btn-scroll-top {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  z-index: 1900;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--grad-primary);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 6px 20px rgba(56, 189, 248, 0.35);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(16px);
+  pointer-events: none;
+  transition: opacity var(--trans-base), transform var(--trans-base), visibility var(--trans-base), box-shadow var(--trans-fast);
+}
+
+.btn-scroll-top.visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.btn-scroll-top:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 26px rgba(56, 189, 248, 0.55);
+}
+
+.scroll-top-label {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
 /* Toast Notification */
 .toast {
   position: fixed;
-  bottom: 24px;
-  right: 24px;
+  bottom: 92px;
+  right: 28px;
   z-index: 3000;
   background: var(--bg-surface-elevated);
   border: 1px solid var(--accent-cyan);
@@ -2484,6 +2528,16 @@ img, svg {
   .contact-card {
     padding: 32px 20px;
   }
+  .btn-scroll-top {
+    bottom: 20px;
+    right: 20px;
+    width: 46px;
+    height: 46px;
+  }
+  .toast {
+    bottom: 78px;
+    right: 20px;
+  }
   .footer-inner {
     flex-direction: column;
     text-align: center;
@@ -2524,6 +2578,7 @@ img, svg {
   .btn-menu-toggle,
   .explorer-controls,
   .board-section,
+  .btn-scroll-top,
   .modal-overlay,
   .toast,
   .skip-nav {
