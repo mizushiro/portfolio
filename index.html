@@ -176,7 +176,7 @@
             </div>
             <div class="meta-item">
               <span class="meta-label">투입 가능일</span>
-              <span class="meta-val">2026. 10. 01 (상시 협의)</span>
+              <span class="meta-val">2026. 11. 01 (상시 협의)</span>
             </div>
             <div class="meta-item">
               <span class="meta-label">희망 단가</span>
@@ -824,6 +824,34 @@
 
         <!-- PANEL 1: Interactive Q&A & Guestbook Board (with Replies & Secret Post) -->
         <div id="board-panel-qna" class="board-panel active" role="tabpanel" aria-labelledby="mode-qna-btn">
+          <!-- Cloud DB Status & Admin Bar -->
+          <div class="board-cloud-bar" id="board-cloud-bar">
+            <div class="cloud-status-left">
+              <span class="cloud-status-dot" id="cloud-status-dot"></span>
+              <span class="cloud-status-text" id="cloud-status-text">클라우드 DB 연결 확인 중...</span>
+            </div>
+            <div class="cloud-status-right">
+              <button type="button" class="btn-cloud-guide" id="btn-toggle-fb-guide" aria-expanded="false"
+                aria-controls="firebase-guide-box">
+                ⚙️ Firebase DB 설정 안내
+              </button>
+              <button type="button" class="btn-admin-login" id="btn-admin-auth" hidden>
+                🔐 관리자(강지연) 로그인
+              </button>
+            </div>
+          </div>
+
+          <!-- Collapsible 1-Minute Firebase Setup Guide -->
+          <div class="firebase-guide-box" id="firebase-guide-box" hidden>
+            <h3 class="firebase-guide-title">☁️ Firebase Cloud Firestore 무료 DB 1분 연동 가이드</h3>
+            <ol class="firebase-guide-steps">
+              <li><a href="https://console.firebase.google.com/" target="_blank" rel="noopener noreferrer">Firebase 콘솔(console.firebase.google.com)</a>에 접속하여 <strong>[프로젝트 추가]</strong>를 클릭해 새 프로젝트를 생성합니다.</li>
+              <li>프로젝트 홈에서 <strong>웹 아이콘(<code>&lt;/&gt;</code>)</strong>을 클릭해 앱을 등록한 뒤, 화면에 나오는 <code>firebaseConfig</code> 값을 프로젝트 폴더의 <strong><code>firebase-config.js</code></strong> 파일에 붙여넣습니다.</li>
+              <li>좌측 메뉴 <strong>[빌드] &rarr; [Authentication] &rarr; [로그인 방법]</strong>에서 <strong>[익명(Anonymous)]</strong>과 <strong>[Google]</strong>(관리자 답변용)을 <strong>사용 설정(ON)</strong>합니다.</li>
+              <li>좌측 메뉴 <strong>[빌드] &rarr; [Firestore Database] &rarr; [데이터베이스 만들기]</strong> 생성 후, <strong>[규칙(Rules)]</strong> 탭에 프로젝트 폴더의 <strong><code>firestore.rules</code></strong> 파일 내용을 붙여넣고 <strong>[게시]</strong>를 누르면 실시간 클라우드 게시판이 즉시 활성화됩니다!</li>
+            </ol>
+          </div>
+
           <!-- Top Bar: Category Filter & Write Button -->
           <div class="board-toolbar">
             <div class="board-filter-tabs" role="tablist" aria-label="게시글 분류 필터">
@@ -1055,6 +1083,7 @@
 
   <!-- Scripts -->
   <script src="projects-data.js"></script>
+  <script src="firebase-config.js"></script>
   <script src="script.js"></script>
 </body>
 

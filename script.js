@@ -494,10 +494,11 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // --------------------------------------------------------------------------
-  // 9. 프로젝트 문의 & 방명록 게시판 (Q&A Board + 답글 + 비밀글 + GitHub 연동)
+  // 9. 프로젝트 문의 & 방명록 게시판 (Firebase Cloud Firestore + 답글 + 비밀글)
   // --------------------------------------------------------------------------
   const BOARD_STORAGE_KEY = 'kjy_portfolio_board_v2';
   const MASTER_PASS = '0000';
+  const ADMIN_EMAIL = window.PORTFOLIO_ADMIN_EMAIL || 'mizushiro@naver.com';
 
   const CATEGORY_META = {
     project: { label: '💼 프로젝트 문의', className: 'project' },
@@ -506,13 +507,69 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   let boardPosts = [];
+  let cloudRawPosts = [];
+  let cloudRawReplies = [];
   let currentBoardCat = 'all';
   const openPostIds = new Set();
   const unlockedSecretIds = new Set();
+  const decryptedSecretsMap = new Map();
+
+  // Firebase Cloud State
+  let isCloudConnected = false;
+  let fbApp = null;
+  let fbAuth = null;
+  let fbDb = null;
+  let fbModules = null;
+  let currentUser = null;
+  let isAdminUser = false;
+
+  // Web Crypto SHA-256 Helper (64-char hex for Firestore security rules)
+  const sha256Hex = async (text) => {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(String(text));
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  };
+
+  // Client-side Secret Content Cipher (prevents plaintext exposure in Firestore)
+  const encryptSecretContent = (plainText, password) => {
+    try {
+      const textBytes = new TextEncoder().encode(plainText);
+      const keyBytes = new TextEncoder().encode(password || 'key');
+      const out = new Uint8Array(textBytes.length);
+      for (let i = 0; i < textBytes.length; i++) {
+        out[i] = textBytes[i] ^ keyBytes[i % keyBytes.length];
+      }
+      let binary = '';
+      out.forEach(b => { binary += String.fromCharCode(b); });
+      return 'ENC1:' + btoa(binary);
+    } catch (e) {
+      return plainText;
+    }
+  };
+
+  const decryptSecretContent = (cipherText, password) => {
+    if (!String(cipherText).startsWith('ENC1:')) return cipherText;
+    try {
+      const binary = atob(String(cipherText).slice(5));
+      const encBytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        encBytes[i] = binary.charCodeAt(i);
+      }
+      const keyBytes = new TextEncoder().encode(password || 'key');
+      const out = new Uint8Array(encBytes.length);
+      for (let i = 0; i < encBytes.length; i++) {
+        out[i] = encBytes[i] ^ keyBytes[i % keyBytes.length];
+      }
+      return new TextDecoder().decode(out);
+    } catch (e) {
+      return '[암호화된 비밀글입니다]';
+    }
+  };
 
   const loadBoardPosts = () => {
     try {
-      // 이전 샘플 데이터 키(v1) 정리
       localStorage.removeItem('kjy_portfolio_board_v1');
       const saved = localStorage.getItem(BOARD_STORAGE_KEY);
       if (saved) {
@@ -564,6 +621,200 @@ document.addEventListener('DOMContentLoaded', () => {
   const engineGiscusBtn = document.getElementById('engine-giscus-btn');
   const utterancesWrap = document.getElementById('utterances-wrap');
   const giscusWrap = document.getElementById('giscus-wrap');
+  const cloudStatusDot = document.getElementById('cloud-status-dot');
+  const cloudStatusText = document.getElementById('cloud-status-text');
+  const btnToggleFbGuide = document.getElementById('btn-toggle-fb-guide');
+  const firebaseGuideBox = document.getElementById('firebase-guide-box');
+  const btnAdminAuth = document.getElementById('btn-admin-auth');
+
+  // Toggle Firebase Setup Guide Box
+  if (btnToggleFbGuide && firebaseGuideBox) {
+    btnToggleFbGuide.addEventListener('click', () => {
+      const isHidden = firebaseGuideBox.hasAttribute('hidden');
+      if (isHidden) {
+        firebaseGuideBox.removeAttribute('hidden');
+        btnToggleFbGuide.setAttribute('aria-expanded', 'true');
+      } else {
+        firebaseGuideBox.setAttribute('hidden', '');
+        btnToggleFbGuide.setAttribute('aria-expanded', 'false');
+      }
+    });
+  }
+
+  // Merge Cloud Posts & Replies into boardPosts
+  const syncCloudToBoardPosts = () => {
+    if (!isCloudConnected) return;
+    const repliesByPost = new Map();
+    cloudRawReplies.forEach((r) => {
+      if (!repliesByPost.has(r.postId)) {
+        repliesByPost.set(r.postId, []);
+      }
+      repliesByPost.get(r.postId).push(r);
+    });
+
+    boardPosts = cloudRawPosts.map((p) => ({
+      ...p,
+      replies: repliesByPost.get(p.id) || []
+    }));
+
+    renderBoardPosts();
+  };
+
+  // Persistent Fallback UID if Anonymous Auth is not enabled yet
+  const getEffectiveUid = () => {
+    if (currentUser && currentUser.uid) return currentUser.uid;
+    let uid = localStorage.getItem('kjy_client_uid');
+    if (!uid) {
+      uid = 'anon_' + Math.random().toString(36).slice(2, 12) + '_' + Date.now();
+      localStorage.setItem('kjy_client_uid', uid);
+    }
+    return uid;
+  };
+
+  // Initialize Firebase Cloud Firestore if configured in firebase-config.js
+  const initFirebaseBoard = async () => {
+    const cfg = window.FIREBASE_CONFIG;
+    const hasConfig = cfg && cfg.apiKey && cfg.projectId && cfg.apiKey.trim() !== '';
+
+    if (!hasConfig) {
+      isCloudConnected = false;
+      if (cloudStatusDot) cloudStatusDot.classList.remove('connected');
+      if (cloudStatusText) {
+        cloudStatusText.textContent = '⚡ 로컬 모드 동작 중 (firebase-config.js에 설정값 입력 시 실시간 클라우드 DB로 자동 전환됩니다)';
+      }
+      loadBoardPosts();
+      renderBoardPosts();
+      return;
+    }
+
+    try {
+      if (cloudStatusText) cloudStatusText.textContent = '☁️ Firebase Cloud Firestore 연결 중...';
+
+      const [appMod, authMod, fsMod] = await Promise.all([
+        import('https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js'),
+        import('https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js'),
+        import('https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js')
+      ]);
+
+      fbModules = { ...appMod, ...authMod, ...fsMod };
+      fbApp = appMod.initializeApp(cfg);
+      fbAuth = authMod.getAuth(fbApp);
+      fbDb = fsMod.getFirestore(fbApp);
+
+      let subscriptionsStarted = false;
+      const startFirestoreSubscriptions = () => {
+        if (subscriptionsStarted) return;
+        subscriptionsStarted = true;
+
+        const postsQuery = fsMod.query(
+          fsMod.collection(fbDb, 'board_posts'),
+          fsMod.orderBy('createdAt', 'desc'),
+          fsMod.limit(100)
+        );
+        const repliesQuery = fsMod.query(
+          fsMod.collection(fbDb, 'board_replies'),
+          fsMod.orderBy('createdAt', 'asc'),
+          fsMod.limit(300)
+        );
+
+        fsMod.onSnapshot(
+          postsQuery,
+          (snap) => {
+            isCloudConnected = true;
+            if (cloudStatusDot) cloudStatusDot.classList.add('connected');
+            if (cloudStatusText) {
+              cloudStatusText.textContent = '☁️ Cloud Firestore 실시간 DB 연결 완료 (portfolio-4834a · 모든 방문자와 게시글·답글이 공유됩니다)';
+            }
+            if (btnToggleFbGuide) btnToggleFbGuide.setAttribute('hidden', '');
+
+            cloudRawPosts = snap.docs.map(d => ({
+              id: d.id,
+              ...d.data()
+            }));
+            syncCloudToBoardPosts();
+          },
+          (err) => {
+            isCloudConnected = false;
+            if (cloudStatusDot) cloudStatusDot.classList.remove('connected');
+            if (cloudStatusText) {
+              cloudStatusText.innerHTML = '⚠️ Firebase 콘솔에서 <strong>Firestore Database 생성</strong>(테스트 모드 또는 규칙 게시)이 필요합니다. 우측 안내 버튼을 확인해 주세요.';
+            }
+            if (btnToggleFbGuide) btnToggleFbGuide.removeAttribute('hidden');
+            loadBoardPosts();
+            renderBoardPosts();
+          }
+        );
+
+        fsMod.onSnapshot(
+          repliesQuery,
+          (snap) => {
+            cloudRawReplies = snap.docs.map(d => ({
+              id: d.id,
+              ...d.data()
+            }));
+            syncCloudToBoardPosts();
+          },
+          () => {
+            // handled by postsQuery error callback
+          }
+        );
+      };
+
+      if (btnAdminAuth) {
+        btnAdminAuth.removeAttribute('hidden');
+        btnAdminAuth.addEventListener('click', async () => {
+          if (isAdminUser) {
+            await authMod.signOut(fbAuth);
+            try { await authMod.signInAnonymously(fbAuth); } catch (_) {}
+            showToast('로그아웃되었습니다.');
+          } else {
+            try {
+              const provider = new authMod.GoogleAuthProvider();
+              await authMod.signInWithPopup(fbAuth, provider);
+            } catch (err) {
+              showToast('⚠️ Google 로그인에 실패했습니다. Firebase 콘솔에서 Google 로그인을 활성화해 주세요.');
+            }
+          }
+        });
+      }
+
+      authMod.onAuthStateChanged(fbAuth, async (user) => {
+        if (!user) {
+          try {
+            await authMod.signInAnonymously(fbAuth);
+            return;
+          } catch (authErr) {
+            // Anonymous Auth not enabled yet -> still start Firestore subscriptions (works in Test Mode)
+            startFirestoreSubscriptions();
+            return;
+          }
+        }
+
+        currentUser = user;
+        isAdminUser = Boolean(user.email && user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase());
+
+        if (btnAdminAuth) {
+          if (isAdminUser) {
+            btnAdminAuth.textContent = '🎖️ 관리자(강지연) 인증됨 · 로그아웃';
+            btnAdminAuth.classList.add('logged-in');
+          } else {
+            btnAdminAuth.textContent = '🔐 관리자(강지연) 로그인';
+            btnAdminAuth.classList.remove('logged-in');
+          }
+        }
+
+        startFirestoreSubscriptions();
+        renderBoardPosts();
+      });
+    } catch (err) {
+      isCloudConnected = false;
+      if (cloudStatusText) {
+        cloudStatusText.textContent = '⚠️ Firebase 연결 실패 (로컬 모드로 전환됨)';
+      }
+      loadBoardPosts();
+      renderBoardPosts();
+    }
+  };
 
   const updateBoardCounts = () => {
     const total = boardPosts.length;
@@ -605,8 +856,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     filtered.forEach((post) => {
-      const isOpen = openPostIds.has(post.id);
-      const isUnlocked = !post.isSecret || unlockedSecretIds.has(post.id);
+      const postKey = String(post.id);
+      const isOpen = openPostIds.has(postKey);
+      const isUnlocked = !post.isSecret || unlockedSecretIds.has(postKey);
       const catMeta = CATEGORY_META[post.category] || CATEGORY_META.project;
       const replies = Array.isArray(post.replies) ? post.replies : [];
       const hasPublisherReply = replies.some(r => r.isPublisher);
@@ -642,6 +894,10 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
         `;
       } else {
+        const displayContent = post.isSecret
+          ? (decryptedSecretsMap.get(postKey) || post.content)
+          : post.content;
+
         const repliesListHtml = replies.length > 0
           ? `
             <div class="board-replies-list">
@@ -662,8 +918,10 @@ document.addEventListener('DOMContentLoaded', () => {
           `
           : `<p style="font-size: 0.84rem; color: var(--text-muted); margin-bottom: 12px;">아직 등록된 답글이 없습니다. 첫 답글을 남겨보세요!</p>`;
 
+        const publisherOptionAttr = '';
+
         bodyHtml = `
-          <div class="board-post-content">${escapeHtml(post.content)}</div>
+          <div class="board-post-content">${escapeHtml(displayContent)}</div>
           <div class="board-post-foot">
             <button type="button" class="btn-delete-post" aria-label="게시글 삭제">🗑️ 게시글 삭제</button>
           </div>
@@ -674,10 +932,10 @@ document.addEventListener('DOMContentLoaded', () => {
             ${repliesListHtml}
             <form class="board-reply-form" novalidate>
               <div class="reply-form-top">
-                <input type="text" class="form-input reply-author-input" placeholder="작성자 이름 *" maxlength="25" required aria-label="답글 작성자 이름">
+                <input type="text" class="form-input reply-author-input" placeholder="작성자 이름 *" maxlength="25" value="${isAdminUser ? '강지연' : ''}" required aria-label="답글 작성자 이름">
                 <select class="form-select reply-role-select" aria-label="답글 작성자 구분">
                   <option value="visitor">👤 방문자 / 문의자 답글</option>
-                  <option value="publisher">🎖️ 강지연 (Publisher 답변)</option>
+                  <option value="publisher" ${isAdminUser ? 'selected' : ''} ${publisherOptionAttr}>🎖️ 강지연 (Publisher 답변)</option>
                 </select>
                 <input type="password" class="form-input reply-pass-input" placeholder="삭제용 비밀번호 *" maxlength="16" required aria-label="답글 삭제용 비밀번호">
               </div>
@@ -713,10 +971,10 @@ document.addEventListener('DOMContentLoaded', () => {
       // Header Toggle Event
       const headerBtn = itemEl.querySelector('.board-item-header');
       headerBtn.addEventListener('click', () => {
-        if (openPostIds.has(post.id)) {
-          openPostIds.delete(post.id);
+        if (openPostIds.has(postKey)) {
+          openPostIds.delete(postKey);
         } else {
-          openPostIds.add(post.id);
+          openPostIds.add(postKey);
         }
         renderBoardPosts();
       });
@@ -725,10 +983,16 @@ document.addEventListener('DOMContentLoaded', () => {
       const unlockBtn = itemEl.querySelector('.btn-unlock-secret');
       const secretInput = itemEl.querySelector('.secret-pass-input');
       if (unlockBtn && secretInput) {
-        const handleUnlock = () => {
+        const handleUnlock = async () => {
           const val = secretInput.value.trim();
-          if (val === post.password || val === MASTER_PASS) {
-            unlockedSecretIds.add(post.id);
+          if (!val) return;
+          const inputHash = await sha256Hex(val);
+          const isMatch = (post.passwordHash && inputHash === post.passwordHash) ||
+                          (post.password && val === post.password) ||
+                          val === MASTER_PASS;
+          if (isMatch) {
+            unlockedSecretIds.add(postKey);
+            decryptedSecretsMap.set(postKey, decryptSecretContent(post.content, val));
             renderBoardPosts();
             showToast('🔓 비밀글 잠금이 해제되었습니다.');
           } else {
@@ -759,7 +1023,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // Reply Form Submit Event
       const replyForm = itemEl.querySelector('.board-reply-form');
       if (replyForm) {
-        replyForm.addEventListener('submit', (e) => {
+        replyForm.addEventListener('submit', async (e) => {
           e.preventDefault();
           const authorVal = itemEl.querySelector('.reply-author-input').value.trim();
           const roleVal = itemEl.querySelector('.reply-role-select').value;
@@ -771,59 +1035,112 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
           }
 
-          const newReply = {
-            id: Date.now(),
-            author: authorVal,
-            isPublisher: roleVal === 'publisher',
-            password: passVal,
-            date: getTodayFormatted(),
-            content: contentVal
-          };
+          const passHash = await sha256Hex(passVal);
 
-          if (!Array.isArray(post.replies)) {
-            post.replies = [];
+          if (isCloudConnected && fbDb && fbModules) {
+            try {
+              await fbModules.addDoc(fbModules.collection(fbDb, 'board_replies'), {
+                postId: String(post.id),
+                author: authorVal,
+                content: contentVal,
+                isPublisher: Boolean(roleVal === 'publisher'),
+                authorUid: getEffectiveUid(),
+                passwordHash: passHash,
+                date: getTodayFormatted(),
+                createdAt: fbModules.serverTimestamp()
+              });
+              showToast('💬 답글이 클라우드 DB에 등록되었습니다.');
+            } catch (err) {
+              showToast('⚠️ 답글 등록 권한을 확인해 주세요.');
+            }
+          } else {
+            const newReply = {
+              id: String(Date.now()),
+              author: authorVal,
+              isPublisher: roleVal === 'publisher',
+              passwordHash: passHash,
+              date: getTodayFormatted(),
+              content: contentVal
+            };
+
+            if (!Array.isArray(post.replies)) {
+              post.replies = [];
+            }
+            post.replies.push(newReply);
+            saveBoardPosts();
+            renderBoardPosts();
+            showToast('💬 답글이 등록되었습니다.');
           }
-          post.replies.push(newReply);
-          saveBoardPosts();
-          renderBoardPosts();
-          showToast('💬 답글이 등록되었습니다.');
         });
       }
 
       // Delete Post Event
       const deletePostBtn = itemEl.querySelector('.btn-delete-post');
       if (deletePostBtn) {
-        deletePostBtn.addEventListener('click', () => {
+        deletePostBtn.addEventListener('click', async () => {
           const inputPass = window.prompt('게시글 삭제를 위해 작성 시 입력한 비밀번호를 입력해 주세요.');
           if (inputPass === null) return;
-          if (inputPass.trim() === post.password || inputPass.trim() === MASTER_PASS) {
-            boardPosts = boardPosts.filter(p => p.id !== post.id);
-            openPostIds.delete(post.id);
+          const inputHash = await sha256Hex(inputPass.trim());
+          const isMatch = (post.passwordHash && inputHash === post.passwordHash) ||
+                          (post.password && inputPass.trim() === post.password) ||
+                          inputPass.trim() === MASTER_PASS ||
+                          isAdminUser;
+
+          if (!isMatch) {
+            showToast('⚠️ 비밀번호가 일치하지 않습니다.');
+            return;
+          }
+
+          if (isCloudConnected && fbDb && fbModules) {
+            try {
+              await fbModules.deleteDoc(fbModules.doc(fbDb, 'board_posts', String(post.id)));
+              openPostIds.delete(postKey);
+              showToast('🗑️ 게시글이 삭제되었습니다.');
+            } catch (err) {
+              showToast('⚠️ 작성자 본인 세션 또는 관리자만 삭제할 수 있습니다.');
+            }
+          } else {
+            boardPosts = boardPosts.filter(p => String(p.id) !== postKey);
+            openPostIds.delete(postKey);
             saveBoardPosts();
             renderBoardPosts();
             showToast('🗑️ 게시글이 삭제되었습니다.');
-          } else {
-            showToast('⚠️ 비밀번호가 일치하지 않습니다.');
           }
         });
       }
 
       // Delete Reply Events
       itemEl.querySelectorAll('.btn-delete-reply').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const replyId = Number(btn.getAttribute('data-reply-id'));
-          const targetReply = (post.replies || []).find(r => r.id === replyId);
+        btn.addEventListener('click', async () => {
+          const replyId = String(btn.getAttribute('data-reply-id'));
+          const targetReply = (post.replies || []).find(r => String(r.id) === replyId);
           if (!targetReply) return;
 
           const inputPass = window.prompt('답글 삭제를 위해 비밀번호를 입력해 주세요.');
           if (inputPass === null) return;
-          if (inputPass.trim() === targetReply.password || inputPass.trim() === MASTER_PASS) {
-            post.replies = post.replies.filter(r => r.id !== replyId);
+          const inputHash = await sha256Hex(inputPass.trim());
+          const isMatch = (targetReply.passwordHash && inputHash === targetReply.passwordHash) ||
+                          (targetReply.password && inputPass.trim() === targetReply.password) ||
+                          inputPass.trim() === MASTER_PASS ||
+                          isAdminUser;
+
+          if (!isMatch) {
+            showToast('⚠️ 비밀번호가 일치하지 않습니다.');
+            return;
+          }
+
+          if (isCloudConnected && fbDb && fbModules) {
+            try {
+              await fbModules.deleteDoc(fbModules.doc(fbDb, 'board_replies', replyId));
+              showToast('🗑️ 답글이 삭제되었습니다.');
+            } catch (err) {
+              showToast('⚠️ 작성자 본인 세션 또는 관리자만 삭제할 수 있습니다.');
+            }
+          } else {
+            post.replies = post.replies.filter(r => String(r.id) !== replyId);
             saveBoardPosts();
             renderBoardPosts();
             showToast('🗑️ 답글이 삭제되었습니다.');
-          } else {
-            showToast('⚠️ 비밀번호가 일치하지 않습니다.');
           }
         });
       });
@@ -873,7 +1190,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Write Post Form Submit
   if (boardWriteForm) {
-    boardWriteForm.addEventListener('submit', (e) => {
+    boardWriteForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const catEl = document.getElementById('post-category');
       const authorEl = document.getElementById('post-author');
@@ -886,37 +1203,72 @@ document.addEventListener('DOMContentLoaded', () => {
       const password = passEl.value.trim();
       const title = titleEl.value.trim();
       const content = contentEl.value.trim();
+      const isSecret = Boolean(secretEl.checked);
 
       if (!author || !password || !title || !content) {
         showToast('⚠️ 작성자, 비밀번호, 제목, 내용을 모두 입력해 주세요.');
         return;
       }
 
-      const newPost = {
-        id: Date.now(),
-        category: catEl.value || 'project',
-        author,
-        password,
-        isSecret: Boolean(secretEl.checked),
-        title,
-        content,
-        date: getTodayFormatted(),
-        replies: []
-      };
+      const passHash = await sha256Hex(password);
+      const storedContent = isSecret ? encryptSecretContent(content, password) : content;
 
-      boardPosts.unshift(newPost);
-      openPostIds.add(newPost.id);
-      if (newPost.isSecret) {
-        unlockedSecretIds.add(newPost.id);
+      if (isCloudConnected && fbDb && fbModules) {
+        try {
+          const docRef = await fbModules.addDoc(fbModules.collection(fbDb, 'board_posts'), {
+            category: catEl.value || 'project',
+            author,
+            title,
+            content: storedContent,
+            isSecret,
+            authorUid: getEffectiveUid(),
+            passwordHash: passHash,
+            date: getTodayFormatted(),
+            createdAt: fbModules.serverTimestamp()
+          });
+          const newKey = String(docRef.id);
+          openPostIds.add(newKey);
+          if (isSecret) {
+            unlockedSecretIds.add(newKey);
+            decryptedSecretsMap.set(newKey, content);
+          }
+          boardWriteForm.reset();
+          boardWriteWrap.setAttribute('hidden', '');
+          btnToggleWrite.setAttribute('aria-expanded', 'false');
+          btnToggleWrite.innerHTML = '<span>✏️ 새 글 작성하기</span>';
+          showToast('☁️ 새 게시글이 클라우드 DB에 등록되었습니다.');
+        } catch (err) {
+          showToast('⚠️ 게시글 등록 중 오류가 발생했습니다.');
+        }
+      } else {
+        const newId = String(Date.now());
+        const newPost = {
+          id: newId,
+          category: catEl.value || 'project',
+          author,
+          passwordHash: passHash,
+          isSecret,
+          title,
+          content: storedContent,
+          date: getTodayFormatted(),
+          replies: []
+        };
+
+        boardPosts.unshift(newPost);
+        openPostIds.add(newId);
+        if (isSecret) {
+          unlockedSecretIds.add(newId);
+          decryptedSecretsMap.set(newId, content);
+        }
+
+        saveBoardPosts();
+        boardWriteForm.reset();
+        boardWriteWrap.setAttribute('hidden', '');
+        btnToggleWrite.setAttribute('aria-expanded', 'false');
+        btnToggleWrite.innerHTML = '<span>✏️ 새 글 작성하기</span>';
+        renderBoardPosts();
+        showToast('✅ 새 게시글이 등록되었습니다.');
       }
-
-      saveBoardPosts();
-      boardWriteForm.reset();
-      boardWriteWrap.setAttribute('hidden', '');
-      btnToggleWrite.setAttribute('aria-expanded', 'false');
-      btnToggleWrite.innerHTML = '<span>✏️ 새 글 작성하기</span>';
-      renderBoardPosts();
-      showToast('✅ 새 게시글이 등록되었습니다.');
     });
   }
 
@@ -1033,6 +1385,5 @@ document.addEventListener('DOMContentLoaded', () => {
   // --------------------------------------------------------------------------
   renderCategoryTabs();
   filterAndRenderProjects();
-  loadBoardPosts();
-  renderBoardPosts();
+  initFirebaseBoard();
 });

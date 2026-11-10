@@ -1,0 +1,193 @@
+rules_version = '2';
+
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// This security rules file assumes the following data structures:
+//
+// Collection: board_posts
+// Document ID: auto-generated Firestore ID
+// Fields:
+//   - category: string (required, enum: ['project', 'recruit', 'guestbook'], immutable) - post category
+//   - author: string (required, 1..30 chars) - author display name
+//   - title: string (required, 1..100 chars) - post title
+//   - content: string (required, 1..4000 chars) - post body (encrypted ciphertext when isSecret is true)
+//   - isSecret: bool (required, immutable) - whether the post content is password-locked
+//   - authorUid: string (required, 1..128 chars, must match request.auth.uid, immutable) - creator UID
+//   - passwordHash: string (required, 64 chars SHA-256 hex, immutable) - hashed post password
+//   - date: string (required, 10 chars YYYY.MM.DD, immutable) - formatted display date
+//   - createdAt: timestamp (required, recent within 5m, immutable) - server creation timestamp
+//
+// Collection: board_replies
+// Document ID: auto-generated Firestore ID
+// Fields:
+//   - postId: string (required, 1..64 chars, must reference existing board_posts/{postId}, immutable) - parent post ID
+//   - author: string (required, 1..30 chars) - reply author display name
+//   - content: string (required, 1..2000 chars) - reply text
+//   - isPublisher: bool (required, true only if isAdmin(), immutable) - official publisher reply badge flag
+//   - authorUid: string (required, 1..128 chars, must match request.auth.uid, immutable) - creator UID
+//   - passwordHash: string (required, 64 chars SHA-256 hex, immutable) - hashed reply password
+//   - date: string (required, 10 chars YYYY.MM.DD, immutable) - formatted display date
+//   - createdAt: timestamp (required, recent within 5m, immutable) - server creation timestamp
+//
+// ===============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    // Check if the user is authenticated (Anonymous Auth or Google Auth)
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Check if the user is the portfolio owner / bootstrapped admin
+    function isAdmin() {
+      return isAuthenticated() &&
+        request.auth.token.email == 'mizushiro@naver.com' &&
+        request.auth.token.email_verified == true;
+    }
+
+    // Check if user is owner based on document's authorUid field
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.authorUid;
+    }
+
+    // Verify authorUid hasn't been tampered with on create
+    function uidUnchanged() {
+      return ('authorUid' in request.resource.data) &&
+        request.resource.data.authorUid == request.auth.uid;
+    }
+
+    // Ensure authorUid field is not modified on update
+    function uidNotModified() {
+      return ('authorUid' in request.resource.data) &&
+        request.resource.data.authorUid == resource.data.authorUid;
+    }
+
+    // Validate required fields exist
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    // Validate that the document contains only the allowed fields
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // Validate string length
+    function validStringLength(field, minLen, maxLen) {
+      return request.resource.data[field] is string &&
+        request.resource.data[field].size() >= minLen &&
+        request.resource.data[field].size() <= maxLen;
+    }
+
+    // Validate that immutable fields have not changed on update
+    function areImmutableFieldsUnchanged(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    // Validate that a timestamp is recent (within the last 5 minutes)
+    function isRecent(time) {
+      return time is timestamp &&
+        time > request.time - duration.value(5, 'm') &&
+        time <= request.time;
+    }
+
+    // ===============================================================
+    // Domain Validators (Used in BOTH create and update)
+    // ===============================================================
+
+    function isValidPost(data) {
+      let allowedFields = [
+        'category', 'author', 'title', 'content',
+        'isSecret', 'authorUid', 'passwordHash', 'date', 'createdAt'
+      ];
+      return hasRequiredFields(allowedFields) &&
+        hasOnlyAllowedFields(allowedFields) &&
+        data.category is string &&
+        data.category in ['project', 'recruit', 'guestbook'] &&
+        validStringLength('author', 1, 30) &&
+        validStringLength('title', 1, 100) &&
+        validStringLength('content', 1, 4000) &&
+        data.isSecret is bool &&
+        validStringLength('authorUid', 1, 128) &&
+        data.passwordHash is string &&
+        data.passwordHash.matches("^[a-f0-9]{64}$") &&
+        data.date is string &&
+        data.date.matches("^\\d{4}\\.\\d{2}\\.\\d{2}$") &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidReply(data) {
+      let allowedFields = [
+        'postId', 'author', 'content', 'isPublisher',
+        'authorUid', 'passwordHash', 'date', 'createdAt'
+      ];
+      return hasRequiredFields(allowedFields) &&
+        hasOnlyAllowedFields(allowedFields) &&
+        validStringLength('postId', 1, 64) &&
+        validStringLength('author', 1, 30) &&
+        validStringLength('content', 1, 2000) &&
+        data.isPublisher is bool &&
+        validStringLength('authorUid', 1, 128) &&
+        data.passwordHash is string &&
+        data.passwordHash.matches("^[a-f0-9]{64}$") &&
+        data.date is string &&
+        data.date.matches("^\\d{4}\\.\\d{2}\\.\\d{2}$") &&
+        data.createdAt is timestamp;
+    }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
+
+    match /board_posts/{postId} {
+      allow read: if isAuthenticated();
+
+      allow create: if isAuthenticated() &&
+        uidUnchanged() &&
+        isValidPost(request.resource.data) &&
+        isRecent(request.resource.data.createdAt);
+
+      allow update: if (isDocOwner() || isAdmin()) &&
+        uidNotModified() &&
+        isValidPost(request.resource.data) &&
+        areImmutableFieldsUnchanged([
+          'authorUid', 'createdAt', 'date', 'passwordHash', 'category', 'isSecret'
+        ]);
+
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    match /board_replies/{replyId} {
+      allow read: if isAuthenticated();
+
+      allow create: if isAuthenticated() &&
+        uidUnchanged() &&
+        isValidReply(request.resource.data) &&
+        isRecent(request.resource.data.createdAt) &&
+        (request.resource.data.isPublisher == false || isAdmin()) &&
+        exists(/databases/$(database)/documents/board_posts/$(request.resource.data.postId));
+
+      allow update: if (isDocOwner() || isAdmin()) &&
+        uidNotModified() &&
+        isValidReply(request.resource.data) &&
+        areImmutableFieldsUnchanged([
+          'authorUid', 'createdAt', 'date', 'passwordHash', 'postId', 'isPublisher'
+        ]);
+
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    // Default deny all other paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
