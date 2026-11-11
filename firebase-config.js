@@ -22,6 +22,6 @@ window.FIREBASE_CONFIG = {
 
 // 포트폴리오 관리자(강지연 퍼블리셔) 이메일 및 마스터 비밀번호
 // - 게시판 상단 [🔐 관리자(강지연) 로그인] 클릭 또는 비밀글 비밀번호란에 관리자 비밀번호 입력 시 모든 비밀글 열람·답변·삭제가 가능합니다.
-window.PORTFOLIO_ADMIN_EMAIL = "mizushiro@naver.com";
+window.PORTFOLIO_ADMIN_EMAIL = "mizushiro80@gmail.com";
 window.PORTFOLIO_ADMIN_PASS = "0000";
 
